@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Parking">
+  <title>Guest Parking</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --bg: #0d0d0d; --surface: #1c1c1e; --surface2: #2c2c2e;
+      --border: #38383a; --text: #f2f2f7; --muted: #8e8e93;
+      --accent: #0a84ff; --success: #30d158; --danger: #ff453a;
+    }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+      min-height: 100vh;
+      padding: max(env(safe-area-inset-top), 20px) 16px max(env(safe-area-inset-bottom), 32px);
+    }
+
+    /* ── Layout ── */
+    header { padding: 12px 0 28px; display: flex; justify-content: space-between; align-items: flex-start; }
+    h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.5px; }
+    .subtitle { color: var(--muted); font-size: 14px; margin-top: 3px; }
+    .gear-btn {
+      background: var(--surface); border: none; border-radius: 50%;
+      width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 18px; flex-shrink: 0;
+    }
+    .section { margin-bottom: 20px; }
+    .section-label {
+      font-size: 12px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.6px; color: var(--muted); margin-bottom: 8px; padding-left: 4px;
+    }
+    .card { background: var(--surface); border-radius: 13px; overflow: hidden; }
+
+    /* ── Option rows ── */
+    .option-row {
+      display: flex; align-items: center; padding: 13px 16px; cursor: pointer;
+      transition: background 0.1s; border-bottom: 1px solid var(--border); user-select: none;
+    }
+    .option-row:last-child { border-bottom: none; }
+    .option-row:active { background: var(--surface2); }
+    .option-row.selected { background: rgba(10,132,255,0.08); }
+    .radio {
+      width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border);
+      margin-right: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      transition: border-color 0.15s;
+    }
+    .selected .radio { border-color: var(--accent); }
+    .radio-dot { width: 11px; height: 11px; border-radius: 50%; background: var(--accent); opacity: 0; transition: opacity 0.15s; }
+    .selected .radio-dot { opacity: 1; }
+    .option-main { flex: 1; }
+    .option-label { font-size: 16px; font-weight: 500; }
+    .option-sub { font-size: 13px; color: var(--muted); margin-top: 1px; }
+
+    /* ── Duration grid ── */
+    .duration-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .dur-btn {
+      background: var(--surface); border: none; border-radius: 12px;
+      padding: 13px 4px 11px; text-align: center; cursor: pointer;
+      color: var(--text); transition: all 0.12s; user-select: none;
+    }
+    .dur-btn-main { font-size: 16px; font-weight: 600; display: block; }
+    .dur-btn-sub { font-size: 10px; color: var(--muted); display: block; margin-top: 2px; }
+    .dur-btn.selected { background: var(--accent); }
+    .dur-btn.selected .dur-btn-sub { color: rgba(255,255,255,0.7); }
+    .dur-btn:active { transform: scale(0.94); }
+
+    /* ── Submit ── */
+    .submit-btn {
+      width: 100%; padding: 17px; background: var(--accent); color: white; border: none;
+      border-radius: 14px; font-size: 17px; font-weight: 600; cursor: pointer;
+      transition: all 0.15s; margin-top: 8px;
+    }
+    .submit-btn:active { transform: scale(0.98); opacity: 0.85; }
+    .submit-btn:disabled { opacity: 0.4; transform: none; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; top: max(env(safe-area-inset-top), 20px); left: 50%;
+      transform: translateX(-50%) translateY(calc(-100% - 20px));
+      background: var(--surface2); color: var(--text); padding: 13px 20px;
+      border-radius: 14px; font-size: 15px; font-weight: 500;
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 200; white-space: nowrap; max-width: 90vw; text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { background: var(--success); color: #000; }
+    .toast.error { background: var(--danger); }
+
+    /* ── Panels (settings + setup) ── */
+    .panel {
+      display: none; position: fixed; inset: 0; background: var(--bg); z-index: 100;
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding: max(env(safe-area-inset-top), 20px) 16px max(env(safe-area-inset-bottom), 32px);
+    }
+    .panel.open { display: block; }
+
+    .panel-header { display: flex; align-items: center; margin-bottom: 24px; padding-top: 4px; }
+    .back-btn {
+      background: none; border: none; color: var(--accent);
+      font-size: 16px; font-weight: 500; cursor: pointer; padding: 8px 16px 8px 0;
+    }
+    .panel-title { font-size: 20px; font-weight: 700; }
+
+    /* ── Forms ── */
+    .input-group { margin-bottom: 14px; }
+    .input-label { font-size: 13px; color: var(--muted); margin-bottom: 6px; display: block; padding-left: 2px; }
+    .input-field {
+      width: 100%; background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 11px; padding: 13px 14px; color: var(--text);
+      font-size: 16px; outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .input-field:focus { border-color: var(--accent); }
+    .form-btn {
+      width: 100%; padding: 15px; background: var(--accent); color: white; border: none;
+      border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 6px;
+    }
+    .danger-btn {
+      width: 100%; padding: 15px; background: transparent; color: var(--danger); border: 1.5px solid var(--danger);
+      border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 10px;
+    }
+    .form-hint { font-size: 13px; color: var(--muted); margin-top: 6px; padding-left: 2px; line-height: 1.4; }
+
+    /* ── Setup fullscreen ── */
+    #setup-screen {
+      position: fixed; inset: 0; background: var(--bg); z-index: 300;
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding: max(env(safe-area-inset-top), 40px) 24px max(env(safe-area-inset-bottom), 40px);
+    }
+    .setup-title { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+    .setup-sub { color: var(--muted); font-size: 15px; margin-bottom: 32px; line-height: 1.4; }
+
+    /* ── Settings info rows ── */
+    .info-card { background: var(--surface); border-radius: 13px; overflow: hidden; margin-bottom: 12px; }
+    .info-row { display: flex; padding: 13px 16px; border-bottom: 1px solid var(--border); font-size: 15px; }
+    .info-row:last-child { border-bottom: none; }
+    .info-key { color: var(--muted); width: 100px; flex-shrink: 0; }
+    .info-val { flex: 1; font-weight: 500; word-break: break-all; }
+
+    /* ── Car editor ── */
+    .car-card { background: var(--surface); border-radius: 13px; padding: 14px; margin-bottom: 10px; }
+    .car-card-header { display: flex; align-items: center; margin-bottom: 14px; }
+    .car-card-name { flex: 1; font-size: 16px; font-weight: 600; }
+    .remove-btn { background: none; border: none; color: var(--danger); font-size: 24px; cursor: pointer; padding: 0; line-height: 1; }
+    .add-car-btn {
+      width: 100%; padding: 14px; background: transparent; color: var(--accent);
+      border: 1.5px dashed var(--accent); border-radius: 12px;
+      font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 10px;
+    }
+    .divider { height: 1px; background: var(--border); margin: 24px 0; }
+  </style>
+</head>
+<body>
+
+<div id="toast" class="toast"></div>
+
+<!-- ── First-time Setup ───────────────────────────────────── -->
+<div id="setup-screen" style="display:none">
+  <div class="setup-title">Welcome</div>
+  <p class="setup-sub">Enter your info once — it stays on this device only and is never uploaded anywhere.</p>
+
+  <div class="input-group">
+    <label class="input-label">Apartment</label>
+    <input class="input-field" id="su-tenant" placeholder="e.g. A101" autocapitalize="characters" autocorrect="off">
+  </div>
+  <div class="input-group">
+    <label class="input-label">Parking Passcode</label>
+    <input class="input-field" id="su-token" placeholder="e.g. 000000" inputmode="numeric" autocomplete="off">
+    <p class="form-hint">The numeric code you use on the parking site.</p>
+  </div>
+  <div class="input-group">
+    <label class="input-label">Your Email</label>
+    <input class="input-field" id="su-email" type="email" placeholder="you@email.com" autocomplete="email">
+    <p class="form-hint">For permit confirmation emails.</p>
+  </div>
+  <div class="input-group">
+    <label class="input-label">Your Phone</label>
+    <input class="input-field" id="su-tel" type="tel" placeholder="14255551234" inputmode="numeric">
+    <p class="form-hint">Digits only, include country code (e.g. 14255551234).</p>
+  </div>
+
+  <button class="form-btn" onclick="saveSetup()">Save & Continue</button>
+</div>
+
+<!-- ── Main Screen ───────────────────────────────────────── -->
+<div id="main-screen" style="display:none">
+  <header>
+    <div>
+      <h1>Guest Parking</h1>
+      <p class="subtitle" id="subtitle">Resident parking</p>
+    </div>
+    <button class="gear-btn" onclick="openSettings()">⚙️</button>
+  </header>
+
+  <div class="section">
+    <div class="section-label">Vehicle</div>
+    <div class="card" id="car-list"></div>
+    <div id="guest-inputs" style="display:none;margin-top:10px">
+      <div class="input-group" style="margin-bottom:8px">
+        <input class="input-field" id="guest-plate" placeholder="License plate" autocapitalize="characters" autocorrect="off" spellcheck="false" maxlength="10">
+      </div>
+      <div class="input-group" style="margin-bottom:0">
+        <input class="input-field" id="guest-notes" placeholder="Color, make, model  (e.g. red honda civic)">
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Duration</div>
+    <div class="duration-grid" id="duration-grid"></div>
+  </div>
+
+  <button class="submit-btn" id="submit-btn" onclick="submitPermit()">Register Permit</button>
+</div>
+
+<!-- ── Settings Panel ────────────────────────────────────── -->
+<div class="panel" id="settings-panel">
+  <div class="panel-header">
+    <button class="back-btn" onclick="closeSettings()">← Back</button>
+    <div class="panel-title">Settings</div>
+  </div>
+
+  <div class="section-label">Your Info (stored on this device)</div>
+  <div id="settings-profile-view"></div>
+
+  <button class="danger-btn" onclick="editCredentials()">Edit Credentials</button>
+
+  <div class="divider"></div>
+
+  <div class="section-label">Vehicles (stored on this device)</div>
+  <div id="car-edit-list"></div>
+  <button class="add-car-btn" onclick="addCar()">+ Add Vehicle</button>
+  <div style="margin-top:8px;font-size:13px;color:var(--muted);padding-left:4px;line-height:1.5">
+    Your vehicles are saved only on this device and are never uploaded anywhere. Each person sets up their own.
+  </div>
+</div>
+
+<script>
+// ─── Constants ───────────────────────────────────────────────
+const API      = 'https://api.propertyboss.io/v1/permits/temporary';
+const LOCATION = 'fcfsp7teyh2efcdhr3gqg7khqr';
+const POLICY   = '6mcbkztq1h6712e6vae1r02gsc';
+const SPACE    = 'GUEST';
+
+const DURATIONS = [
+  { label:'1h',  sub:'1 hour',   val:'PT1H'  },
+  { label:'2h',  sub:'2 hours',  val:'PT2H'  },
+  { label:'3h',  sub:'3 hours',  val:'PT3H'  },
+  { label:'4h',  sub:'4 hours',  val:'PT4H'  },
+  { label:'6h',  sub:'6 hours',  val:'PT6H'  },
+  { label:'12h', sub:'12 hours', val:'PT12H' },
+  { label:'24h', sub:'1 day',    val:'PT24H' },
+  { label:'48h', sub:'2 days',   val:'PT48H' },
+];
+
+// Cars live in localStorage only (per-device, never uploaded), same as credentials.
+function getCars() {
+  try { return JSON.parse(localStorage.getItem('cars') || '[]'); }
+  catch { return []; }
+}
+function saveCars(arr) { localStorage.setItem('cars', JSON.stringify(arr)); }
+function newCarId() {
+  return 'c' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+}
+let CARS = getCars();
+
+// ─── State ───────────────────────────────────────────────────
+let state = {
+  car:      sessionStorage.getItem('sel_car') || CARS[0]?.id,
+  duration: sessionStorage.getItem('sel_dur') || 'PT24H',
+};
+
+// ─── Credentials (localStorage only, never in any file) ──────
+function getCreds() {
+  return {
+    tenant: localStorage.getItem('tenant') || '',
+    token:  localStorage.getItem('token')  || '',
+    email:  localStorage.getItem('email')  || '',
+    tel:    localStorage.getItem('tel')    || '',
+  };
+}
+function saveCreds(o) {
+  ['tenant','token','email','tel'].forEach(k => localStorage.setItem(k, o[k] || ''));
+}
+function hasValidCreds() {
+  const c = getCreds();
+  return c.tenant && c.token && c.email && c.tel;
+}
+
+// ─── Init ────────────────────────────────────────────────────
+function init() {
+  if (hasValidCreds()) {
+    showMain();
+  } else {
+    document.getElementById('setup-screen').style.display = 'block';
+  }
+}
+
+function showMain() {
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('main-screen').style.display  = 'block';
+  render();
+}
+
+// ─── Setup screen ────────────────────────────────────────────
+function saveSetup() {
+  const tenant = document.getElementById('su-tenant').value.trim().toUpperCase();
+  const token  = document.getElementById('su-token').value.trim();
+  const email  = document.getElementById('su-email').value.trim();
+  const tel    = document.getElementById('su-tel').value.trim();
+
+  if (!tenant) return showToast('Enter your apartment number', 'error');
+  if (!token)  return showToast('Enter your passcode', 'error');
+  if (!email)  return showToast('Enter your email', 'error');
+  if (!tel)    return showToast('Enter your phone number', 'error');
+
+  saveCreds({ tenant, token, email, tel });
+  showMain();
+}
+
+// ─── Render main ─────────────────────────────────────────────
+function render() {
+  if (!CARS.find(c => c.id === state.car)) state.car = CARS[0]?.id;
+
+  const creds = getCreds();
+  document.getElementById('subtitle').textContent =
+    creds.tenant ? `Resident parking · ${creds.tenant}` : 'Resident parking';
+
+  const carRows = CARS.map(c => `
+      <div class="option-row ${c.id === state.car ? 'selected' : ''}" onclick="selCar('${c.id}')">
+        <div class="radio"><div class="radio-dot"></div></div>
+        <div class="option-main">
+          <div class="option-label">${esc(c.name || 'Car')}</div>
+          <div class="option-sub">${
+            c.plate
+              ? esc(c.plate.toUpperCase()) + (c.notes ? ' · ' + esc(c.notes) : '')
+              : '⚠ No plate — tap ⚙ to edit'
+          }</div>
+        </div>
+      </div>`).join('');
+
+  const guestRow = `
+      <div class="option-row ${'guest' === state.car ? 'selected' : ''}" onclick="selCar('guest')">
+        <div class="radio"><div class="radio-dot"></div></div>
+        <div class="option-main">
+          <div class="option-label">Guest / Other</div>
+          <div class="option-sub">Enter plate manually</div>
+        </div>
+      </div>`;
+
+  document.getElementById('car-list').innerHTML = carRows + guestRow;
+  document.getElementById('guest-inputs').style.display = state.car === 'guest' ? 'block' : 'none';
+
+  document.getElementById('duration-grid').innerHTML = DURATIONS.map(d => `
+    <div class="dur-btn ${d.val === state.duration ? 'selected' : ''}" onclick="selDur('${d.val}')">
+      <span class="dur-btn-main">${d.label}</span>
+      <span class="dur-btn-sub">${d.sub}</span>
+    </div>`).join('');
+}
+
+function selCar(id) { state.car = id; sessionStorage.setItem('sel_car', id); render(); }
+function selDur(v)  { state.duration = v; sessionStorage.setItem('sel_dur', v); render(); }
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Submit ──────────────────────────────────────────────────
+async function submitPermit() {
+  const creds = getCreds();
+  let carPlate, carNotes;
+
+  if (state.car === 'guest') {
+    carPlate = (document.getElementById('guest-plate').value || '').trim().toUpperCase();
+    carNotes = (document.getElementById('guest-notes').value || '').trim();
+    if (!carPlate) return showToast('Enter a license plate', 'error');
+  } else {
+    const car = CARS.find(c => c.id === state.car);
+    if (!car)       return showToast('Select a vehicle.', 'error');
+    if (!car.plate) return showToast('No plate set — tap ⚙ to edit', 'error');
+    carPlate = car.plate.toUpperCase();
+    carNotes = car.notes || '';
+  }
+  if (!creds.email || !creds.tel) return showToast('Credentials incomplete — tap ⚙', 'error');
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Registering…';
+
+  const params = {
+    viewpoint: new Date().toISOString(),
+    location:  LOCATION,
+    policy:    POLICY,
+    vehicle:   carPlate,
+    tenant:    creds.tenant.toUpperCase(),
+    token:     creds.token,
+    space:     SPACE,
+    startDate: '',
+    duration:  state.duration,
+    notes:     carNotes,
+    email:     creds.email,
+    tel:       creds.tel,
+  };
+
+  const qs = new URLSearchParams(params).toString();
+  const fd = new FormData();
+  Object.entries(params).forEach(([k,v]) => fd.append(k, v));
+
+  let ok = false, errMsg = '';
+  try {
+    const res  = await fetch(`${API}?${qs}`, { method:'POST', body:fd });
+    const text = await res.text().catch(() => '');
+    if (res.ok) {
+      ok = true;
+    } else if (res.status === 409) {
+      ok = true;
+      showToast('Already registered!', 'success');
+    } else {
+      errMsg = `Error ${res.status}`;
+      try { const j = JSON.parse(text); errMsg = j.error || j.message || errMsg; } catch {}
+    }
+  } catch {
+    errMsg = 'cors';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Register Permit';
+
+  if (ok) {
+    if (!document.querySelector('.toast.show')) showToast('✓ Permit registered!', 'success');
+    return;
+  }
+  if (errMsg === 'cors') {
+    showToast('Opening form — tap "register"', '');
+    window.open(
+      `https://anthology.parkingattendant.com/fcfsp7teyh2efcdhr3gqg7khqr/permits/temporary/new?policy=${POLICY}`,
+      '_blank'
+    );
+  } else {
+    showToast(errMsg, 'error');
+  }
+}
+
+// ─── Toast ────────────────────────────────────────────────────
+let _tt;
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type;
+  void t.offsetWidth;
+  t.classList.add('show');
+  clearTimeout(_tt);
+  _tt = setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+// ─── Settings panel ──────────────────────────────────────────
+function openSettings() {
+  const c = getCreds();
+  document.getElementById('settings-profile-view').innerHTML = `
+    <div class="info-card">
+      <div class="info-row"><span class="info-key">Apartment</span><span class="info-val">${esc(c.tenant || '—')}</span></div>
+      <div class="info-row"><span class="info-key">Passcode</span><span class="info-val">${c.token ? '••••••' : '—'}</span></div>
+      <div class="info-row"><span class="info-key">Email</span><span class="info-val">${esc(c.email || '—')}</span></div>
+      <div class="info-row"><span class="info-key">Phone</span><span class="info-val">${esc(c.tel || '—')}</span></div>
+    </div>`;
+
+  renderCarEditor();
+  document.getElementById('settings-panel').classList.add('open');
+}
+
+function renderCarEditor() {
+  const cars = getCars();
+  document.getElementById('car-edit-list').innerHTML = cars.map((c, i) => `
+    <div class="car-card">
+      <div class="car-card-header">
+        <span class="car-card-name">${esc(c.name || ('Vehicle ' + (i + 1)))}</span>
+        <button class="remove-btn" onclick="removeCar('${c.id}')" aria-label="Remove vehicle">×</button>
+      </div>
+      <div class="input-group" style="margin-bottom:10px">
+        <label class="input-label">Name</label>
+        <input class="input-field" value="${esc(c.name || '')}" placeholder="e.g. Audi"
+               oninput="updateCar('${c.id}','name',this.value)">
+      </div>
+      <div class="input-group" style="margin-bottom:10px">
+        <label class="input-label">Plate</label>
+        <input class="input-field" value="${esc(c.plate || '')}" placeholder="e.g. ABC1234"
+               autocapitalize="characters" autocorrect="off" spellcheck="false" maxlength="10"
+               oninput="updateCar('${c.id}','plate',this.value)">
+      </div>
+      <div class="input-group" style="margin-bottom:0">
+        <label class="input-label">Description</label>
+        <input class="input-field" value="${esc(c.notes || '')}" placeholder="e.g. Red Audi A4"
+               oninput="updateCar('${c.id}','notes',this.value)">
+      </div>
+    </div>`).join('');
+}
+
+function addCar() {
+  const cars = getCars();
+  cars.push({ id: newCarId(), name: '', plate: '', notes: '' });
+  saveCars(cars);
+  CARS = cars;
+  renderCarEditor();
+}
+
+function removeCar(id) {
+  saveCars(getCars().filter(c => c.id !== id));
+  CARS = getCars();
+  renderCarEditor();
+}
+
+// Save edits live; no re-render here so the input keeps focus while typing.
+function updateCar(id, field, val) {
+  const cars = getCars();
+  const c = cars.find(x => x.id === id);
+  if (!c) return;
+  c[field] = val;
+  saveCars(cars);
+  CARS = cars;
+}
+
+function closeSettings() {
+  document.getElementById('settings-panel').classList.remove('open');
+  CARS = getCars();
+  render();
+}
+
+function editCredentials() {
+  const c = getCreds();
+  document.getElementById('su-tenant').value = c.tenant;
+  document.getElementById('su-token').value  = c.token;
+  document.getElementById('su-email').value  = c.email;
+  document.getElementById('su-tel').value    = c.tel;
+  closeSettings();
+  document.getElementById('main-screen').style.display  = 'none';
+  document.getElementById('setup-screen').style.display = 'block';
+}
+
+// ─── Go ──────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
