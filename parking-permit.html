@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -249,10 +252,17 @@
   <div style="margin-top:8px;font-size:13px;color:var(--muted);padding-left:4px;line-height:1.5">
     Your vehicles are saved only on this device and are never uploaded anywhere. Each person sets up their own.
   </div>
+
+  <div class="divider"></div>
+
+  <div class="section-label">App</div>
+  <button class="form-btn" onclick="forceReload()">Check for Update</button>
+  <div id="app-version" style="margin-top:8px;font-size:13px;color:var(--muted);padding-left:4px;line-height:1.5"></div>
 </div>
 
 <script>
 // ─── Constants ───────────────────────────────────────────────
+const VERSION  = '2026-06-26.1';   // bump on each release so you can confirm the update loaded
 const API      = 'https://api.propertyboss.io/v1/permits/temporary';
 const LOCATION = 'fcfsp7teyh2efcdhr3gqg7khqr';
 const POLICY   = '6mcbkztq1h6712e6vae1r02gsc';
@@ -485,7 +495,15 @@ function openSettings() {
     </div>`;
 
   renderCarEditor();
+  document.getElementById('app-version').textContent =
+    'Version ' + VERSION + '. Tap "Check for Update" to load the latest, bypassing the cache.';
   document.getElementById('settings-panel').classList.add('open');
+}
+
+// Force the latest version past Safari's web-app cache by reloading with a
+// fresh URL (changed query string), which iOS won't serve from cache.
+function forceReload() {
+  location.replace(location.pathname + '?v=' + Date.now());
 }
 
 function renderCarEditor() {
