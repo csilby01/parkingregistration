@@ -262,8 +262,9 @@
 
 <script>
 // ─── Constants ───────────────────────────────────────────────
-const VERSION  = '2026-06-26.1';   // bump on each release so you can confirm the update loaded
+const VERSION  = '2026-06-26.2';   // bump on each release so you can confirm the update loaded
 const API      = 'https://api.propertyboss.io/v1/permits/temporary';
+const SEND_API = 'https://api.propertyboss.io/v1/send';
 const LOCATION = 'fcfsp7teyh2efcdhr3gqg7khqr';
 const POLICY   = '6mcbkztq1h6712e6vae1r02gsc';
 const SPACE    = 'GUEST';
@@ -392,6 +393,35 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// ─── Confirmation send (second API call) ─────────────────────
+// Find the new permit's id in the create response — used as the `container`
+// for the /v1/send call. Prefer the permits.item pointer, fall back to the
+// first item whose type is "permit".
+function findPermitId(data) {
+  if (data?.permits?.item) return data.permits.item;
+  const items = data?.items || {};
+  for (const k in items) {
+    if (items[k] && items[k].type === 'permit') return items[k].id || k;
+  }
+  return null;
+}
+
+// Hit /v1/send once per chosen channel (email and/or tel). creds.send is one
+// of: 'email', 'tel', 'email,tel', or '' (none).
+async function sendConfirmation(container, creds) {
+  const channels = (creds.send || '').split(',').filter(Boolean);
+  for (const ch of channels) {
+    const to = ch === 'email' ? creds.email : creds.tel;
+    if (!to) continue;
+    const qs = new URLSearchParams({
+      viewpoint: new Date().toISOString(),
+      container,
+      to,
+    }).toString();
+    try { await fetch(`${SEND_API}?${qs}`, { method: 'GET' }); } catch {}
+  }
+}
+
 // ─── Submit ──────────────────────────────────────────────────
 async function submitPermit() {
   const creds = getCreds();
@@ -427,20 +457,19 @@ async function submitPermit() {
     notes:     carNotes,
     email:     creds.email,
     tel:       creds.tel,
-    send:      creds.send,  // confirmation method: email | tel | email,tel | '' (none)
-    agreement: 'true',      // policy requires the rules agreement to be accepted
   };
 
   const qs = new URLSearchParams(params).toString();
   const fd = new FormData();
   Object.entries(params).forEach(([k,v]) => fd.append(k, v));
 
-  let ok = false, errMsg = '';
+  let ok = false, errMsg = '', container = null;
   try {
     const res  = await fetch(`${API}?${qs}`, { method:'POST', body:fd });
     const text = await res.text().catch(() => '');
     if (res.ok) {
       ok = true;
+      try { container = findPermitId(JSON.parse(text)); } catch {}
     } else if (res.status === 409) {
       ok = true;
       showToast('Already registered!', 'success');
@@ -450,6 +479,12 @@ async function submitPermit() {
     }
   } catch {
     errMsg = 'cors';
+  }
+
+  // Second call: the parking system only sends a confirmation when /v1/send is
+  // hit separately with the new permit's container id. Fire one per channel.
+  if (ok && container && creds.send) {
+    await sendConfirmation(container, creds);
   }
 
   btn.disabled = false;
