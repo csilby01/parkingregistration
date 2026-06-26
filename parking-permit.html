@@ -10,35 +10,94 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Parking">
   <title>Guest Parking</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cinzel+Decorative:wght@400;700;900&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <!-- Set the realm (shire = light, mordor = dark) before paint to avoid a flash -->
+  <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'shire');</script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    :root {
-      --bg: #0d0d0d; --surface: #1c1c1e; --surface2: #2c2c2e;
-      --border: #38383a; --text: #f2f2f7; --muted: #8e8e93;
-      --accent: #0a84ff; --success: #30d158; --danger: #ff453a;
+
+    /* ═══ Realms ═══ */
+    /* Light = The Shire (default) */
+    :root, [data-theme="shire"] {
+      --bg: #F2E7C9; --surface: #FBF5E4; --surface2: #EADFC0;
+      --border: #D8C49A; --text: #3B2A17; --muted: #836F4E;
+      --accent: #5E7E3A; --accent-text: #FBF5E4;
+      --gold: #C7972F; --success: #4F7A2E; --success-text: #FBF5E4; --danger: #B05530;
+      --selected-bg: rgba(94,126,58,0.12);
+      --radius: 16px; --radius-sm: 12px;
+      --shadow: 0 10px 30px -12px rgba(59,42,23,0.30);
+      --glow: rgba(199,151,47,0.40);
+      --title-grad: linear-gradient(135deg, #6B8E3E 0%, #C7972F 100%);
+      --title-filter: drop-shadow(0 1px 1px rgba(94,126,58,0.25));
+      --ornament: '❦';
     }
+    /* Dark = Mordor / Sauron */
+    [data-theme="mordor"] {
+      --bg: #0C0A0A; --surface: #1A1413; --surface2: #271D19;
+      --border: #3A2A23; --text: #ECE0D2; --muted: #8C7B6E;
+      --accent: #E8521F; --accent-text: #120806;
+      --gold: #FF7A1A; --success: #9DBF3C; --success-text: #0C0A0A; --danger: #D92D20;
+      --selected-bg: rgba(232,82,31,0.15);
+      --radius: 7px; --radius-sm: 5px;
+      --shadow: 0 12px 34px -10px rgba(0,0,0,0.7);
+      --glow: rgba(232,82,31,0.40);
+      --title-grad: linear-gradient(120deg, #FFB04A 0%, #FF7A1A 42%, #E8521F 72%, #D92D20 100%);
+      --title-filter: drop-shadow(0 0 16px rgba(232,82,31,0.40));
+      --ornament: '\25C8';
+    }
+
+    html { background: var(--bg); }
     body {
-      background: var(--bg); color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+      color: var(--text);
+      font-family: 'EB Garamond', Georgia, 'Times New Roman', serif;
+      font-size: 17px;
       min-height: 100vh;
       padding: max(env(safe-area-inset-top), 20px) 16px max(env(safe-area-inset-bottom), 32px);
+      background-color: var(--bg);
+      background-image: radial-gradient(ellipse 90% 55% at 50% -8%, var(--glow), transparent 62%);
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      transition: background-color 0.4s ease, color 0.4s ease;
+      -webkit-font-smoothing: antialiased;
+    }
+    /* Faint grain film over everything for parchment / ash texture */
+    body::after {
+      content: ''; position: fixed; inset: 0; z-index: 500; pointer-events: none;
+      opacity: 0.06; mix-blend-mode: soft-light;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     }
 
     /* ── Layout ── */
-    header { padding: 12px 0 28px; display: flex; justify-content: space-between; align-items: flex-start; }
-    h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.5px; }
-    .subtitle { color: var(--muted); font-size: 14px; margin-top: 3px; }
+    header { padding: 14px 0 30px; display: flex; justify-content: space-between; align-items: flex-start; }
+    h1 {
+      font-family: 'Cinzel Decorative', 'Cinzel', serif;
+      font-size: 32px; font-weight: 700; line-height: 1.05; letter-spacing: 0.5px;
+      background: var(--title-grad); -webkit-background-clip: text; background-clip: text;
+      color: transparent; filter: var(--title-filter);
+    }
+    .subtitle {
+      color: var(--muted); font-size: 15px; margin-top: 5px; font-style: italic;
+      letter-spacing: 0.2px;
+    }
     .gear-btn {
-      background: var(--surface); border: none; border-radius: 50%;
-      width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
-      cursor: pointer; font-size: 18px; flex-shrink: 0;
+      background: var(--surface); border: 1.5px solid var(--border); border-radius: 50%;
+      width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 18px; flex-shrink: 0; box-shadow: var(--shadow);
+      transition: transform 0.15s;
     }
-    .section { margin-bottom: 20px; }
+    .gear-btn:active { transform: rotate(40deg) scale(0.92); }
+    .section { margin-bottom: 22px; }
     .section-label {
+      font-family: 'Cinzel', serif;
       font-size: 12px; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.6px; color: var(--muted); margin-bottom: 8px; padding-left: 4px;
+      letter-spacing: 1.4px; color: var(--muted); margin-bottom: 9px; padding-left: 4px;
     }
-    .card { background: var(--surface); border-radius: 13px; overflow: hidden; }
+    .card {
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow);
+    }
 
     /* ── Option rows ── */
     .option-row {
@@ -47,7 +106,7 @@
     }
     .option-row:last-child { border-bottom: none; }
     .option-row:active { background: var(--surface2); }
-    .option-row.selected { background: rgba(10,132,255,0.08); }
+    .option-row.selected { background: var(--selected-bg); }
     .radio {
       width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border);
       margin-right: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
@@ -57,48 +116,54 @@
     .radio-dot { width: 11px; height: 11px; border-radius: 50%; background: var(--accent); opacity: 0; transition: opacity 0.15s; }
     .selected .radio-dot { opacity: 1; }
     .option-main { flex: 1; }
-    .option-label { font-size: 16px; font-weight: 500; }
-    .option-sub { font-size: 13px; color: var(--muted); margin-top: 1px; }
+    .option-label { font-size: 17px; font-weight: 500; }
+    .option-sub { font-size: 14px; color: var(--muted); margin-top: 1px; }
 
     /* ── Duration grid ── */
     .duration-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
     .dur-btn {
-      background: var(--surface); border: none; border-radius: 12px;
+      background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm);
       padding: 13px 4px 11px; text-align: center; cursor: pointer;
-      color: var(--text); transition: all 0.12s; user-select: none;
+      color: var(--text); transition: all 0.12s; user-select: none; box-shadow: var(--shadow);
     }
-    .dur-btn-main { font-size: 16px; font-weight: 600; display: block; }
-    .dur-btn-sub { font-size: 10px; color: var(--muted); display: block; margin-top: 2px; }
-    .dur-btn.selected { background: var(--accent); }
-    .dur-btn.selected .dur-btn-sub { color: rgba(255,255,255,0.7); }
+    .dur-btn-main { font-family: 'Cinzel', serif; font-size: 16px; font-weight: 600; display: block; }
+    .dur-btn-sub { font-size: 11px; color: var(--muted); display: block; margin-top: 2px; }
+    .dur-btn.selected { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+    .dur-btn.selected .dur-btn-sub { color: var(--accent-text); opacity: 0.75; }
     .dur-btn:active { transform: scale(0.94); }
 
     /* ── Submit ── */
     .submit-btn {
-      width: 100%; padding: 17px; background: var(--accent); color: white; border: none;
-      border-radius: 14px; font-size: 17px; font-weight: 600; cursor: pointer;
-      transition: all 0.15s; margin-top: 8px;
+      width: 100%; padding: 18px; background: var(--accent); color: var(--accent-text); border: none;
+      border-radius: var(--radius); font-family: 'Cinzel', serif; font-size: 17px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 1.5px; cursor: pointer;
+      transition: all 0.15s; margin-top: 10px;
+      box-shadow: var(--shadow), 0 0 22px -6px var(--glow);
     }
-    .submit-btn:active { transform: scale(0.98); opacity: 0.85; }
-    .submit-btn:disabled { opacity: 0.4; transform: none; }
+    .submit-btn:active { transform: scale(0.98); opacity: 0.9; }
+    .submit-btn:disabled { opacity: 0.45; transform: none; }
 
     /* ── Toast ── */
     .toast {
       position: fixed; top: max(env(safe-area-inset-top), 20px); left: 50%;
       transform: translateX(-50%) translateY(calc(-100% - 20px));
-      background: var(--surface2); color: var(--text); padding: 13px 20px;
-      border-radius: 14px; font-size: 15px; font-weight: 500;
+      background: var(--surface2); color: var(--text); padding: 14px 22px;
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      font-family: 'Cinzel', serif; font-size: 15px; font-weight: 500; letter-spacing: 0.3px;
       transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-      z-index: 200; white-space: nowrap; max-width: 90vw; text-align: center;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      z-index: 600; white-space: nowrap; max-width: 90vw; text-align: center;
+      box-shadow: var(--shadow);
     }
     .toast.show { transform: translateX(-50%) translateY(0); }
-    .toast.success { background: var(--success); color: #000; }
-    .toast.error { background: var(--danger); }
+    .toast.success { background: var(--success); color: var(--success-text); border-color: var(--success); }
+    .toast.error { background: var(--danger); color: #fff; border-color: var(--danger); }
 
     /* ── Panels (settings + setup) ── */
     .panel {
-      display: none; position: fixed; inset: 0; background: var(--bg); z-index: 100;
+      display: none; position: fixed; inset: 0; z-index: 100;
+      background-color: var(--bg);
+      background-image: radial-gradient(ellipse 90% 50% at 50% -6%, var(--glow), transparent 60%);
+      background-repeat: no-repeat; background-attachment: fixed;
       overflow-y: auto; -webkit-overflow-scrolling: touch;
       padding: max(env(safe-area-inset-top), 20px) 16px max(env(safe-area-inset-bottom), 32px);
     }
@@ -107,56 +172,103 @@
     .panel-header { display: flex; align-items: center; margin-bottom: 24px; padding-top: 4px; }
     .back-btn {
       background: none; border: none; color: var(--accent);
-      font-size: 16px; font-weight: 500; cursor: pointer; padding: 8px 16px 8px 0;
+      font-family: 'Cinzel', serif; font-size: 16px; font-weight: 600; cursor: pointer; padding: 8px 16px 8px 0;
     }
-    .panel-title { font-size: 20px; font-weight: 700; }
+    .panel-title { font-family: 'Cinzel Decorative', 'Cinzel', serif; font-size: 22px; font-weight: 700; }
 
     /* ── Forms ── */
-    .input-group { margin-bottom: 14px; }
-    .input-label { font-size: 13px; color: var(--muted); margin-bottom: 6px; display: block; padding-left: 2px; }
+    .input-group { margin-bottom: 15px; }
+    .input-label {
+      font-family: 'Cinzel', serif; font-size: 12px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.8px; color: var(--muted); margin-bottom: 6px; display: block; padding-left: 2px;
+    }
     .input-field {
       width: 100%; background: var(--surface); border: 1.5px solid var(--border);
-      border-radius: 11px; padding: 13px 14px; color: var(--text);
-      font-size: 16px; outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      border-radius: var(--radius-sm); padding: 14px 15px; color: var(--text);
+      font-family: 'EB Garamond', Georgia, serif; font-size: 17px;
+      outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+      -webkit-appearance: none; appearance: none;
     }
-    .input-field:focus { border-color: var(--accent); }
+    .input-field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--selected-bg); }
+    select.input-field {
+      padding-right: 38px; cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%238a7960' d='M6 8 0 0h12z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 14px center; background-size: 11px;
+    }
     .form-btn {
-      width: 100%; padding: 15px; background: var(--accent); color: white; border: none;
-      border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 6px;
+      width: 100%; padding: 16px; background: var(--accent); color: var(--accent-text); border: none;
+      border-radius: var(--radius-sm); font-family: 'Cinzel', serif; font-size: 16px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 1.2px; cursor: pointer; margin-top: 6px;
+      box-shadow: var(--shadow), 0 0 18px -8px var(--glow);
     }
+    .form-btn:active { transform: scale(0.99); opacity: 0.92; }
     .danger-btn {
       width: 100%; padding: 15px; background: transparent; color: var(--danger); border: 1.5px solid var(--danger);
-      border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 10px;
+      border-radius: var(--radius-sm); font-family: 'Cinzel', serif; font-size: 15px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 1px; cursor: pointer; margin-top: 10px;
     }
-    .form-hint { font-size: 13px; color: var(--muted); margin-top: 6px; padding-left: 2px; line-height: 1.4; }
+    .form-hint { font-size: 14px; color: var(--muted); margin-top: 6px; padding-left: 2px; line-height: 1.45; font-style: italic; }
 
     /* ── Setup fullscreen ── */
     #setup-screen {
-      position: fixed; inset: 0; background: var(--bg); z-index: 300;
+      position: fixed; inset: 0; z-index: 300;
+      background-color: var(--bg);
+      background-image: radial-gradient(ellipse 90% 50% at 50% -6%, var(--glow), transparent 60%);
+      background-repeat: no-repeat; background-attachment: fixed;
       overflow-y: auto; -webkit-overflow-scrolling: touch;
       padding: max(env(safe-area-inset-top), 40px) 24px max(env(safe-area-inset-bottom), 40px);
     }
-    .setup-title { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
-    .setup-sub { color: var(--muted); font-size: 15px; margin-bottom: 32px; line-height: 1.4; }
+    .setup-title {
+      font-family: 'Cinzel Decorative', 'Cinzel', serif; font-size: 30px; font-weight: 700;
+      margin-bottom: 8px; background: var(--title-grad); -webkit-background-clip: text;
+      background-clip: text; color: transparent; filter: var(--title-filter);
+    }
+    .setup-sub { color: var(--muted); font-size: 16px; margin-bottom: 32px; line-height: 1.5; font-style: italic; }
 
     /* ── Settings info rows ── */
-    .info-card { background: var(--surface); border-radius: 13px; overflow: hidden; margin-bottom: 12px; }
-    .info-row { display: flex; padding: 13px 16px; border-bottom: 1px solid var(--border); font-size: 15px; }
+    .info-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; box-shadow: var(--shadow); }
+    .info-row { display: flex; padding: 13px 16px; border-bottom: 1px solid var(--border); font-size: 16px; }
     .info-row:last-child { border-bottom: none; }
-    .info-key { color: var(--muted); width: 100px; flex-shrink: 0; }
+    .info-key { font-family: 'Cinzel', serif; font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); width: 104px; flex-shrink: 0; align-self: center; }
     .info-val { flex: 1; font-weight: 500; word-break: break-all; }
 
     /* ── Car editor ── */
-    .car-card { background: var(--surface); border-radius: 13px; padding: 14px; margin-bottom: 10px; }
+    .car-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 15px; margin-bottom: 10px; box-shadow: var(--shadow); }
     .car-card-header { display: flex; align-items: center; margin-bottom: 14px; }
-    .car-card-name { flex: 1; font-size: 16px; font-weight: 600; }
-    .remove-btn { background: none; border: none; color: var(--danger); font-size: 24px; cursor: pointer; padding: 0; line-height: 1; }
+    .car-card-name { flex: 1; font-family: 'Cinzel', serif; font-size: 16px; font-weight: 600; }
+    .remove-btn { background: none; border: none; color: var(--danger); font-size: 26px; cursor: pointer; padding: 0; line-height: 1; }
     .add-car-btn {
       width: 100%; padding: 14px; background: transparent; color: var(--accent);
-      border: 1.5px dashed var(--accent); border-radius: 12px;
-      font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 10px;
+      border: 1.5px dashed var(--accent); border-radius: var(--radius-sm);
+      font-family: 'Cinzel', serif; font-size: 14px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.8px; cursor: pointer; margin-top: 10px;
     }
-    .divider { height: 1px; background: var(--border); margin: 24px 0; }
+
+    /* ── Decorative divider ── */
+    .divider {
+      position: relative; height: 1px; margin: 30px 0;
+      background: linear-gradient(90deg, transparent, var(--border) 20%, var(--border) 80%, transparent);
+    }
+    .divider::after {
+      content: var(--ornament); position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%); padding: 0 14px; background: var(--bg);
+      color: var(--gold); font-size: 15px;
+    }
+
+    /* ── Theme (realm) toggle ── */
+    .theme-toggle { display: flex; gap: 8px; }
+    .theme-opt {
+      flex: 1; padding: 16px 8px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--surface); color: var(--muted); cursor: pointer; transition: all 0.18s;
+      font-family: 'Cinzel', serif; font-size: 14px; font-weight: 600; letter-spacing: 0.6px;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
+    .theme-opt .theme-emoji { font-size: 24px; line-height: 1; }
+    .theme-opt.active {
+      color: var(--text); border-color: var(--accent); background: var(--selected-bg);
+      box-shadow: inset 0 0 0 1px var(--accent), 0 0 18px -8px var(--glow);
+    }
+    .theme-opt:active { transform: scale(0.97); }
   </style>
 </head>
 <body>
@@ -255,6 +367,21 @@
 
   <div class="divider"></div>
 
+  <div class="section-label">Realm</div>
+  <div class="theme-toggle" id="theme-toggle">
+    <button class="theme-opt" data-theme-val="shire" onclick="setTheme('shire')">
+      <span class="theme-emoji">🌿</span> The Shire
+    </button>
+    <button class="theme-opt" data-theme-val="mordor" onclick="setTheme('mordor')">
+      <span class="theme-emoji">🌋</span> Mordor
+    </button>
+  </div>
+  <div style="margin-top:8px;font-size:13px;color:var(--muted);padding-left:4px;line-height:1.5;font-style:italic">
+    Light for the green hills of the Shire, dark for the fires of Mordor.
+  </div>
+
+  <div class="divider"></div>
+
   <div class="section-label">App</div>
   <button class="form-btn" onclick="forceReload()">Check for Update</button>
   <div id="app-version" style="margin-top:8px;font-size:13px;color:var(--muted);padding-left:4px;line-height:1.5"></div>
@@ -262,7 +389,7 @@
 
 <script>
 // ─── Constants ───────────────────────────────────────────────
-const VERSION  = '2026-06-26.3';   // bump on each release so you can confirm the update loaded
+const VERSION  = '2026-06-26.4';   // bump on each release so you can confirm the update loaded
 const API      = 'https://api.propertyboss.io/v1/permits/temporary';
 const SEND_API = 'https://api.propertyboss.io/v1/send';
 const LOCATION = 'fcfsp7teyh2efcdhr3gqg7khqr';
@@ -315,8 +442,18 @@ function hasValidCreds() {
   return c.tenant && c.token && c.email && c.tel;
 }
 
+// ─── Theme (realm: shire = light, mordor = dark) ─────────────
+function getTheme() { return localStorage.getItem('theme') || 'shire'; }
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  document.querySelectorAll('.theme-opt').forEach(b =>
+    b.classList.toggle('active', b.dataset.themeVal === t));
+}
+function setTheme(t) { localStorage.setItem('theme', t); applyTheme(t); }
+
 // ─── Init ────────────────────────────────────────────────────
 function init() {
+  applyTheme(getTheme());
   if (hasValidCreds()) {
     showMain();
   } else {
@@ -529,6 +666,7 @@ function openSettings() {
     </div>`;
 
   renderCarEditor();
+  applyTheme(getTheme());
   document.getElementById('app-version').textContent =
     'Version ' + VERSION + '. Tap "Check for Update" to load the latest, bypassing the cache.';
   document.getElementById('settings-panel').classList.add('open');
