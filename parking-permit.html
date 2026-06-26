@@ -326,7 +326,7 @@ function saveSetup() {
 
 // ─── Render main ─────────────────────────────────────────────
 function render() {
-  if (!CARS.find(c => c.id === state.car)) state.car = CARS[0]?.id;
+  if (state.car !== 'guest' && !CARS.find(c => c.id === state.car)) state.car = CARS[0]?.id;
 
   const creds = getCreds();
   document.getElementById('subtitle').textContent =
