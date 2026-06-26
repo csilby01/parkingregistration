@@ -262,7 +262,7 @@
 
 <script>
 // ─── Constants ───────────────────────────────────────────────
-const VERSION  = '2026-06-26.2';   // bump on each release so you can confirm the update loaded
+const VERSION  = '2026-06-26.3';   // bump on each release so you can confirm the update loaded
 const API      = 'https://api.propertyboss.io/v1/permits/temporary';
 const SEND_API = 'https://api.propertyboss.io/v1/send';
 const LOCATION = 'fcfsp7teyh2efcdhr3gqg7khqr';
@@ -413,12 +413,11 @@ async function sendConfirmation(container, creds) {
   for (const ch of channels) {
     const to = ch === 'email' ? creds.email : creds.tel;
     if (!to) continue;
-    const qs = new URLSearchParams({
-      viewpoint: new Date().toISOString(),
-      container,
-      to,
-    }).toString();
-    try { await fetch(`${SEND_API}?${qs}`, { method: 'GET' }); } catch {}
+    const p = { viewpoint: new Date().toISOString(), container, to };
+    const qs = new URLSearchParams(p).toString();
+    const fd = new FormData();
+    Object.entries(p).forEach(([k, v]) => fd.append(k, v));
+    try { await fetch(`${SEND_API}?${qs}`, { method: 'POST', body: fd }); } catch {}
   }
 }
 
