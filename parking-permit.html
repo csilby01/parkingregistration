@@ -405,6 +405,8 @@ async function submitPermit() {
     notes:     carNotes,
     email:     creds.email,
     tel:       creds.tel,
+    send:      'email',   // confirmation method: email | tel | email,tel | '' (none)
+    agreement: 'true',    // policy requires the rules agreement to be accepted
   };
 
   const qs = new URLSearchParams(params).toString();
