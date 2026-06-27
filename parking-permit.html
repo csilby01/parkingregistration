@@ -275,12 +275,84 @@
       box-shadow: inset 0 0 0 1px var(--accent), 0 0 18px -8px var(--glow);
     }
     .theme-opt:active { transform: scale(0.97); }
+
+    /* ── Success overlay (full-screen GIF + themed text) ───────── */
+    .success-overlay {
+      display: none; position: fixed; inset: 0; z-index: 700;
+      background: #000;
+      align-items: center; justify-content: center;
+      opacity: 0; transition: opacity 0.4s ease;
+    }
+    .success-overlay.show { display: flex; opacity: 1; }
+
+    /* The GIF fills the whole screen. `cover` trims it to fit (no bars,
+       crops edges); switch to `fill` to stretch it instead, or `contain`
+       to letterbox the whole frame with no cropping. */
+    .success-gif {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; object-position: center;
+    }
+
+    /* Readable scrim so the themed text stands out over any GIF. */
+    .success-overlay::before {
+      content: ''; position: absolute; inset: 0; z-index: 1;
+      background: linear-gradient(180deg,
+        rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 30%,
+        rgba(0,0,0,0.15) 60%, rgba(0,0,0,0.70) 100%);
+      pointer-events: none;
+    }
+
+    .success-content {
+      position: relative; z-index: 2; text-align: center;
+      padding: max(env(safe-area-inset-top), 36px) 26px max(env(safe-area-inset-bottom), 36px);
+      display: flex; flex-direction: column; height: 100%;
+      justify-content: space-between; align-items: center;
+      pointer-events: none;
+    }
+    .success-badge {
+      font-family: 'Cinzel', serif; font-size: 12px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 2px;
+      color: var(--gold); text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+    }
+    .success-text-block { margin-bottom: 4px; }
+    .success-title {
+      font-family: 'Cinzel Decorative', 'Cinzel', serif;
+      font-size: 30px; font-weight: 700; line-height: 1.12; color: #fff;
+      text-shadow: 0 2px 14px rgba(0,0,0,0.9), 0 0 30px var(--glow);
+    }
+    .success-msg {
+      font-size: 17px; font-style: italic; line-height: 1.5; margin-top: 12px;
+      color: #f3ead7; text-shadow: 0 2px 10px rgba(0,0,0,0.9);
+      max-width: 30ch; margin-left: auto; margin-right: auto;
+    }
+    .success-dismiss {
+      pointer-events: auto;
+      padding: 15px 40px; background: var(--accent); color: var(--accent-text); border: none;
+      border-radius: var(--radius); font-family: 'Cinzel', serif; font-size: 16px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 1.5px; cursor: pointer;
+      box-shadow: 0 8px 30px -6px rgba(0,0,0,0.7), 0 0 24px -4px var(--glow);
+      transition: transform 0.15s;
+    }
+    .success-dismiss:active { transform: scale(0.96); }
   </style>
 </head>
 <body>
 
 <div id="toast" class="toast"></div>
 <audio id="bg-audio" loop preload="auto"></audio>
+
+<!-- ── Success overlay (full-screen GIF + themed text) ─────── -->
+<div id="success-overlay" class="success-overlay" onclick="hideSuccess()">
+  <img id="success-gif" class="success-gif" alt="">
+  <div class="success-content">
+    <div class="success-badge" id="success-badge">Permit Registered</div>
+    <div class="success-text-block">
+      <div class="success-title" id="success-title"></div>
+      <div class="success-msg" id="success-msg"></div>
+    </div>
+    <button class="success-dismiss" onclick="hideSuccess()">Continue</button>
+  </div>
+</div>
 
 <!-- ── First-time Setup ───────────────────────────────────── -->
 <div id="setup-screen" style="display:none">
@@ -399,8 +471,25 @@
 
 <script>
 // ─── Constants ───────────────────────────────────────────────
-const VERSION  = '2026-06-26.5';   // bump on each release so you can confirm the update loaded
+const VERSION  = '2026-06-26.6';   // bump on each release so you can confirm the update loaded
 const TRACKS   = { shire: 'shire.mp3', mordor: 'mordor.mp3' };  // theme-matched background music
+
+// Success-screen GIF + themed text, one per realm. Drop your own GIF files
+// next to this page using these names (or change the `gif` paths below).
+const SUCCESS = {
+  shire: {
+    gif:   'shire-success.gif',
+    badge: 'Permit Granted',
+    title: 'And Back Again',
+    msg:   'Your guest is welcome in the Shire. The permit is granted — let the kettle sing and the pipes be lit.',
+  },
+  mordor: {
+    gif:   'mordor-success.gif',
+    badge: 'Permit Forged',
+    title: 'It Is Done',
+    msg:   'The permit is forged in the fires. Your guest may pass the Black Gate unchallenged.',
+  },
+};
 const API      = 'https://api.propertyboss.io/v1/permits/temporary';
 const SEND_API = 'https://api.propertyboss.io/v1/send';
 const LOCATION = 'fcfsp7teyh2efcdhr3gqg7khqr';
@@ -669,7 +758,7 @@ async function submitPermit() {
   const fd = new FormData();
   Object.entries(params).forEach(([k,v]) => fd.append(k, v));
 
-  let ok = false, errMsg = '', container = null;
+  let ok = false, already = false, errMsg = '', container = null;
   try {
     const res  = await fetch(`${API}?${qs}`, { method:'POST', body:fd });
     const text = await res.text().catch(() => '');
@@ -678,7 +767,7 @@ async function submitPermit() {
       try { container = findPermitId(JSON.parse(text)); } catch {}
     } else if (res.status === 409) {
       ok = true;
-      showToast('Already registered!', 'success');
+      already = true;
     } else {
       errMsg = `Error ${res.status}`;
       try { const j = JSON.parse(text); errMsg = j.error || j.message || errMsg; } catch {}
@@ -697,7 +786,7 @@ async function submitPermit() {
   btn.textContent = 'Register Permit';
 
   if (ok) {
-    if (!document.querySelector('.toast.show')) showToast('✓ Permit registered!', 'success');
+    showSuccess(already ? 'Already Registered' : undefined);
     return;
   }
   if (errMsg === 'cors') {
@@ -709,6 +798,19 @@ async function submitPermit() {
   } else {
     showToast(errMsg, 'error');
   }
+}
+
+// ─── Success overlay ─────────────────────────────────────────
+function showSuccess(badgeOverride) {
+  const cfg = SUCCESS[getTheme()] || SUCCESS.shire;
+  document.getElementById('success-gif').src      = cfg.gif;
+  document.getElementById('success-badge').textContent = badgeOverride || cfg.badge;
+  document.getElementById('success-title').textContent = cfg.title;
+  document.getElementById('success-msg').textContent   = cfg.msg;
+  document.getElementById('success-overlay').classList.add('show');
+}
+function hideSuccess() {
+  document.getElementById('success-overlay').classList.remove('show');
 }
 
 // ─── Toast ────────────────────────────────────────────────────
