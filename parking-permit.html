@@ -87,7 +87,13 @@
       cursor: pointer; font-size: 18px; flex-shrink: 0; box-shadow: var(--shadow);
       transition: transform 0.15s;
     }
-    .gear-btn:active { transform: rotate(40deg) scale(0.92); }
+    .gear-btn:active { transform: scale(0.92); }
+    .header-actions { display: flex; gap: 10px; flex-shrink: 0; }
+    #music-btn { font-size: 17px; }
+    #music-btn.on {
+      border-color: var(--accent); background: var(--selected-bg);
+      box-shadow: var(--shadow), 0 0 16px -5px var(--glow);
+    }
     .section { margin-bottom: 22px; }
     .section-label {
       font-family: 'Cinzel', serif;
@@ -274,6 +280,7 @@
 <body>
 
 <div id="toast" class="toast"></div>
+<audio id="bg-audio" loop preload="auto"></audio>
 
 <!-- ── First-time Setup ───────────────────────────────────── -->
 <div id="setup-screen" style="display:none">
@@ -320,7 +327,10 @@
       <h1>Guest Parking</h1>
       <p class="subtitle" id="subtitle">Resident parking</p>
     </div>
-    <button class="gear-btn" onclick="openSettings()">⚙️</button>
+    <div class="header-actions">
+      <button class="gear-btn" id="music-btn" onclick="toggleMusic()" aria-label="Toggle music">🔇</button>
+      <button class="gear-btn" onclick="openSettings()" aria-label="Settings">⚙️</button>
+    </div>
   </header>
 
   <div class="section">
@@ -389,7 +399,8 @@
 
 <script>
 // ─── Constants ───────────────────────────────────────────────
-const VERSION  = '2026-06-26.4';   // bump on each release so you can confirm the update loaded
+const VERSION  = '2026-06-26.5';   // bump on each release so you can confirm the update loaded
+const TRACKS   = { shire: 'shire.mp3', mordor: 'mordor.mp3' };  // theme-matched background music
 const API      = 'https://api.propertyboss.io/v1/permits/temporary';
 const SEND_API = 'https://api.propertyboss.io/v1/send';
 const LOCATION = 'fcfsp7teyh2efcdhr3gqg7khqr';
@@ -449,11 +460,70 @@ function applyTheme(t) {
   document.querySelectorAll('.theme-opt').forEach(b =>
     b.classList.toggle('active', b.dataset.themeVal === t));
 }
-function setTheme(t) { localStorage.setItem('theme', t); applyTheme(t); }
+function setTheme(t) {
+  localStorage.setItem('theme', t);
+  applyTheme(t);
+  syncAudioSource();   // switch track to match the new realm
+}
+
+// ─── Music (theme-matched, plays only while the app is open) ──
+let audioEl;
+function getMusicOn() { return localStorage.getItem('music') === 'on'; }
+
+function syncAudioSource() {
+  if (!audioEl) return;
+  const want = TRACKS[getTheme()] || TRACKS.shire;
+  if (!audioEl.currentSrc.endsWith(want)) {
+    const wasPlaying = !audioEl.paused;
+    audioEl.src = want;
+    if (wasPlaying || getMusicOn()) audioEl.play().catch(() => {});
+  }
+}
+
+function updateMusicBtn() {
+  const b = document.getElementById('music-btn');
+  if (!b) return;
+  const on = getMusicOn();
+  b.textContent = on ? '🎵' : '🔇';
+  b.classList.toggle('on', on);
+}
+
+function setMusic(on) {
+  localStorage.setItem('music', on ? 'on' : 'off');
+  updateMusicBtn();
+  if (on) { syncAudioSource(); audioEl.play().catch(() => {}); }
+  else    { audioEl.pause(); }
+}
+function toggleMusic() { setMusic(!getMusicOn()); }
+
+function initAudio() {
+  audioEl = document.getElementById('bg-audio');
+  audioEl.volume = 0.5;
+  syncAudioSource();
+  updateMusicBtn();
+
+  // Only while the app is open: pause when backgrounded, resume when visible.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) audioEl.pause();
+    else if (getMusicOn()) audioEl.play().catch(() => {});
+  });
+
+  // Auto-resume if music was on last time. Browsers block sound-on-load until
+  // a user gesture, so if play() is rejected, start on the first interaction.
+  if (getMusicOn()) {
+    audioEl.play().catch(() => {
+      const start = () => { if (getMusicOn()) audioEl.play().catch(() => {}); remove(); };
+      const evs = ['pointerdown', 'touchstart', 'click', 'keydown'];
+      const remove = () => evs.forEach(e => document.removeEventListener(e, start));
+      evs.forEach(e => document.addEventListener(e, start));
+    });
+  }
+}
 
 // ─── Init ────────────────────────────────────────────────────
 function init() {
   applyTheme(getTheme());
+  initAudio();
   if (hasValidCreds()) {
     showMain();
   } else {
