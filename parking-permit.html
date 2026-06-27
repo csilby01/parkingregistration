@@ -341,6 +341,19 @@
 <div id="toast" class="toast"></div>
 <audio id="bg-audio" loop preload="auto"></audio>
 
+<!-- ── Failure overlay (full-screen GIF + themed text) ─────── -->
+<div id="failure-overlay" class="success-overlay" onclick="hideFailure()">
+  <img id="failure-gif" class="success-gif" alt="">
+  <div class="success-content">
+    <div class="success-badge" id="failure-badge" style="color:#ff9966"></div>
+    <div class="success-text-block">
+      <div class="success-title" id="failure-title"></div>
+      <div class="success-msg" id="failure-msg"></div>
+    </div>
+    <button class="success-dismiss" style="background:var(--danger);color:#fff" onclick="hideFailure()">Try Again</button>
+  </div>
+</div>
+
 <!-- ── Success overlay (full-screen GIF + themed text) ─────── -->
 <div id="success-overlay" class="success-overlay" onclick="hideSuccess()">
   <img id="success-gif" class="success-gif" alt="">
@@ -471,7 +484,7 @@
 
 <script>
 // ─── Constants ───────────────────────────────────────────────
-const VERSION  = '2026-06-26.6';   // bump on each release so you can confirm the update loaded
+const VERSION  = '2026-06-26.7';   // bump on each release so you can confirm the update loaded
 const TRACKS   = { shire: 'shire.mp3', mordor: 'mordor.mp3' };  // theme-matched background music
 
 // Success-screen GIF + themed text, one per realm. Drop your own GIF files
@@ -488,6 +501,22 @@ const SUCCESS = {
     badge: 'Permit Forged',
     title: 'It Is Done',
     msg:   'The permit is forged in the fires. Your guest may pass the Black Gate unchallenged.',
+  },
+};
+
+// Failure-screen GIF + themed text, one per realm.
+const FAILURE = {
+  shire: {
+    gif:   'shire-failure.gif',
+    badge: 'Oh Bother',
+    title: 'Not Today, Dear',
+    msg:   'The permit office has had enough for one afternoon. Have a biscuit, try again in a moment.',
+  },
+  mordor: {
+    gif:   'mordor-failure.gif',
+    badge: 'The Eye Rejects You',
+    title: 'You Shall Not Park',
+    msg:   'Sauron has looked upon your request and found it wanting. Perhaps try a different plate, or flee.',
   },
 };
 const API      = 'https://api.propertyboss.io/v1/permits/temporary';
@@ -796,7 +825,7 @@ async function submitPermit() {
       '_blank'
     );
   } else {
-    showToast(errMsg, 'error');
+    showFailure(errMsg);
   }
 }
 
@@ -811,6 +840,18 @@ function showSuccess(badgeOverride) {
 }
 function hideSuccess() {
   document.getElementById('success-overlay').classList.remove('show');
+}
+
+function showFailure(errMsg) {
+  const cfg = FAILURE[getTheme()] || FAILURE.shire;
+  document.getElementById('failure-gif').src       = cfg.gif;
+  document.getElementById('failure-badge').textContent = cfg.badge;
+  document.getElementById('failure-title').textContent = cfg.title;
+  document.getElementById('failure-msg').textContent   = errMsg || cfg.msg;
+  document.getElementById('failure-overlay').classList.add('show');
+}
+function hideFailure() {
+  document.getElementById('failure-overlay').classList.remove('show');
 }
 
 // ─── Toast ────────────────────────────────────────────────────
